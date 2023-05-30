@@ -1,5 +1,5 @@
 file_name = "temp.txt"
-new_file_name = "20220803_KT_NC"
+new_file_name = "20220730_두산_한화"
 
 with open(file_name, "r") as temp_file:
     with open(new_file_name, "a") as new_file:
