@@ -70,38 +70,23 @@ def iter_segment_raw_data(config, title, video_path):
         # print(video_data.shape, video_data.dtype)
 
         # audio 추출
-        subclip = audio_clip.subclip(segment_start_sec, min(segment_end_sec, video_clip.duration))
-        audio_frames = subclip.to_soundarray().astype(np.float16)   # value range (-1, 1)
+        subclip = clip.subclip(segment_start_sec, min(segment_end_sec, clip.duration))
+        audio_signal = subclip.audio.to_soundarray(fps=audio_sample_rate)
+
+        if audio_signal.ndim == 2 and audio_signal.shape[1] > 1:
+            audio_signal = audio_signal.mean(axis=1)
 
         correct_audio_frame_count = int(segment_length * audio_sample_rate)
-        # 마지막 segment일 때 frame count가 모자라면 zero padding 적용
-        if segment_end_sec >= audio_clip.duration and audio_frames.shape[0] < correct_audio_frame_count:
-            pad_size = correct_audio_frame_count - audio_frames.shape[0]
-            audio_frames = np.pad(audio_frames, ((0, pad_size), (0, 0)))
-
-        # frame count가 항상 일정해야 함
-        try:
-            assert audio_frames.shape[0] == correct_audio_frame_count
-        except AssertionError as e:
-            print(f'ERROR: {title} :: audio frame count is not correct. ({audio_frames.shape[0]}, {correct_audio_frame_count})')
-            raise e
-
-        if audio_frames.ndim == 2 and audio_frames.shape[1] > 1:
-            # merge stereo to mono
-            audio_frames = audio_frames.mean(axis=1)
 
         if apply_mfcc:
-            # audio waveform에 dfcc 적용하여 특징값 추출
-            mfccs = librosa.feature.mfcc(y=audio_frames, sr=audio_sample_rate, n_mfcc=40).astype(np.float16)
-
-            # normalize by standard normal distribution
-            mfccs = (mfccs - mfccs.mean()) / (mfccs.std() + 1e-6)
-
+            # audio waveform에 mfcc 적용하여 특징값 추출
+            mfccs = librosa.feature.mfcc(y=audio_signal, sr=audio_sample_rate, n_mfcc=40).astype(np.float16)            
             audio_data = mfccs
+       
         else:
-            audio_data = audio_frames
+            audio_data = audio_signal
 
-        # print(audio_data.shape, audio_data.dtype)
+        print(audio_data.shape, audio_data.dtype)
 
         yield video_data, audio_data, segment_start_sec, segment_end_sec, clip.duration, clip.fps
 
